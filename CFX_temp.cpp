@@ -39,7 +39,7 @@ void loop() {
   // read analog value from defined sensor pin;
   int readingSensor = analogRead(sensorPin);
 
-  // calculate the average from 30 readings and a 2000ms delay between;
+  // calculate the average from 30 readings and a 2000ms delay between them - leading to a calculation every 60 seconds;
   int readingAverage = 0;
    for (int i=0; i < 30; i++) {
    readingAverage = readingAverage + analogRead(A0);
@@ -74,6 +74,7 @@ void loop() {
       Serial.printf("The client %s connects to the MQTT broker\n", client_id.c_str());
       if (client.connect(client_id.c_str())) {
           Serial.println("MQTT broker connected");
+          client.publish("device/fe003/Status","{\"clientId\": \"fe003\", \"connected\": 1, \"version\": \"v0.2\", \"services\": {\"t1\": \"temperature\"}}");
       } else {
           Serial.print("failed with state ");
           Serial.print(client.state());
