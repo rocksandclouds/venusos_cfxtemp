@@ -3,25 +3,27 @@
 #include <PubSubClient.h>
 
 int sensorPin = 0;
-int AverageSamples = 10;
+double calcTemperature;
 
 // WiFi parameters to be configured
-const char* ssid = "@home"; // Write here your router's username
-const char* password = "abc"; // Write here your router's password
+const char* ssid = "SSID"; // Write here your router's username
+const char* password = "PASSWORD"; // Write here your router's password
 
 // MQTT Broker
 const char *mqtt_broker = "192.168.178.30";
-const char *topic = "esp8266/test";
+const char *topic1 = "esp8266/raw";
+const char *topic2 = "esp8266/average";
+const char *topic3 = "esp8266/temp";
 const int mqtt_port = 1883;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 
-
 void setup() {
-  // Set software serial baud to 115200;
+  // Set  serial baud to 9600;
   Serial.begin(9600);
+  
   // connecting to a WiFi network
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -32,55 +34,65 @@ void setup() {
 
   //connecting to a mqtt broker
   client.setServer(mqtt_broker, mqtt_port);
-  client.setCallback(callback);
   while (!client.connected()) {
       String client_id = "esp8266-client-";
       client_id += String(WiFi.macAddress());
-      Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
+      Serial.printf("The client %s connects to the MQTT broker\n", client_id.c_str());
       if (client.connect(client_id.c_str())) {
-          Serial.println("Public emqx mqtt broker connected");
+          Serial.println("MQTT broker connected");
       } else {
           Serial.print("failed with state ");
           Serial.print(client.state());
           delay(2000);
       }
   }
-  //  subscribe
-  client.subscribe(topic);
-}
-
-void callback(char *topic, byte *payload, unsigned int length) {
-  Serial.print("Message arrived in topic: ");
-  Serial.println(topic);
-  Serial.print("Message:");
-  for (int i = 0; i < length; i++) {
-      Serial.print((char) payload[i]);
   }
-  Serial.println();
-  Serial.println("-----------------------");
-}
 
 void loop() {
   client.loop();
-  int SensorReading = analogRead(sensorPin);
-  Serial.print(sensorPin);
 
-  int average = 0;
-  for (int i = 0; i < AverageSamples; ++i) {
-   average += SensorReading / AverageSamples;
-  delay(20);
-  }
+  // read analog value from defined sensor pin;
+  int readingSensor = analogRead(sensorPin);
 
+  // calculate the average from 10 readings and a 300ms delay between;
+  int readingAverage = 0;
+   for (int i=0; i < 10; i++) {
+   readingAverage = readingAverage + analogRead(A0);
+   Serial.println(readingAverage);
+   delay(300);
+   }
+   readingAverage = readingAverage/10;
+  Serial.println();
+  Serial.println("-----------------------");
+
+  // transform the calculated avarage into the temperature, based on a linear function;
+  calcTemperature = ((readingAverage-422.25)/14.5);
+  Serial.println(calcTemperature);
+  Serial.println();
+  Serial.println("-----------------------");
+
+  // send messages to MQTT;
   char msg[30];
   char val[10];
-  dtostrf(SensorReading, 8, 5, val);
-  sprintf(msg, "Wert: %s", val);
-  client.publish(topic, msg);
+  dtostrf(readingSensor, 8, 5, val);
+  sprintf(msg, "Raw: %s", val);
+  client.publish(topic1, msg);
 
   char msgAverage[30];
   char valAverage[10];
-  dtostrf(SensorReading, 8, 5, valAverage);
-  sprintf(msg, "Durchschnitt: %s", valAverage);
-  client.publish(topic, msgAverage);
+  dtostrf(readingAverage, 8, 5, valAverage);
+  sprintf(msgAverage, "Durchschnitt: %s", valAverage);
+  client.publish(topic2, msgAverage);
+
+  char msgTemperature[30];
+  char valTemperature[10];
+  dtostrf(calcTemperature, 8, 1, valTemperature);
+  sprintf(msgTemperature, "Temperature: %s", valTemperature);
+  client.publish(topic3, msgTemperature);
+  Serial.println();
+  Serial.println("----------!!!!!!!!!!!!!!----------");
+  Serial.println("FINISHED!");
+  Serial.println("----------!!!!!!!!!!!!!!----------");
+  Serial.println();
   delay(5000);
 }
