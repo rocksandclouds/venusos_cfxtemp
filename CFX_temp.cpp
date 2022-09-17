@@ -39,7 +39,7 @@ void loop() {
   // read analog value from defined sensor pin;
   int readingSensor = analogRead(sensorPin);
 
-  // calculate the average from 10 readings and a 1000ms delay between;
+  // calculate the average from 30 readings and a 2000ms delay between;
   int readingAverage = 0;
    for (int i=0; i < 30; i++) {
    readingAverage = readingAverage + analogRead(A0);
